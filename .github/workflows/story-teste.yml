@@ -1,56 +1,87 @@
-name: Gerar story de teste
+name: Validar layout de Story com fixture sintética
 on:
   workflow_dispatch:
-  push:
+  pull_request:
     paths:
       - '.github/workflows/story-teste.yml'
+      - 'README.md'
+      - '.gitignore'
+  push:
+    branches: [main, 'fix/**']
+    paths:
+      - '.github/workflows/story-teste.yml'
+      - 'README.md'
+      - '.gitignore'
 permissions:
   contents: read
+concurrency:
+  group: media-layout-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   story:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - run: pip install Pillow==11.3.0
-      - name: Criar story
+      - name: Instalar dependência de renderização
+        run: python -m pip install --disable-pip-version-check 'Pillow==12.3.0'
+      - name: Renderizar fixture sem conteúdo científico
+        env:
+          MEDIA_TEST_OUTPUT: ${{ runner.temp }}/story-layout-fixture.png
         run: |
           python - <<'PY'
+          import os
+          from pathlib import Path
           from PIL import Image, ImageDraw, ImageFont
-          from pathlib import Path
-          im=Image.new('RGB',(1080,1920),'#F7F6F2')
-          d=ImageDraw.Draw(im)
-          def font(size,bold=False):
-              return ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans'+('-Bold' if bold else '')+'.ttf',size)
-          d.rectangle((0,0,1080,20),fill='#031E39')
-          d.text((80,110),'@linomatias.idosos',font=font(38,True),fill='#031E39')
-          d.text((80,205),'PARA PROFISSIONAIS',font=font(29,True),fill='#287386')
-          for y,line in enumerate(['Caminhada e','treino de equilíbrio:','o que sabemos?']):
-              d.text((80,390+90*y),line,font=font(65,True),fill='#031E39')
-          d.line((80,740,1000,740),fill='#287386',width=5)
-          for y,line in enumerate(['Exercícios de equilíbrio e','tarefas funcionais têm','evidência para reduzir quedas.']):
-              d.text((80,850+76*y),line,font=font(53),fill='#031E39')
-          for y,line in enumerate(['Caminhada isolada: evidência','menos conclusiva para','prevenção de quedas.']):
-              d.text((80,1170+68*y),line,font=font(42),fill='#031E39')
-          d.text((80,1535),'Para discutir na equipe:',font=font(35,True),fill='#287386')
-          d.text((80,1600),'Qual desfecho orienta seu treino?',font=font(35),fill='#031E39')
-          d.text((80,1770),'RASCUNHO — REVISÃO CIENTÍFICA OBRIGATÓRIA',font=font(23),fill='#465D6C')
-          Path('stories').mkdir(exist_ok=True)
-          im.save('stories/teste-equilibrio.png',optimize=True)
+
+          temp = Path(os.environ['RUNNER_TEMP']).resolve()
+          output = Path(os.environ['MEDIA_TEST_OUTPUT']).resolve()
+          if not output.is_relative_to(temp):
+              raise SystemExit('Fixture deve permanecer no diretório temporário do runner.')
+          output.parent.mkdir(parents=True, exist_ok=True)
+          image = Image.new('RGB', (1080, 1920), '#F7F6F2')
+          draw = ImageDraw.Draw(image)
+          family = '/usr/share/fonts/truetype/dejavu/DejaVuSans'
+          title = ImageFont.truetype(family + '-Bold.ttf', 60)
+          body = ImageFont.truetype(family + '.ttf', 38)
+          draw.rectangle((0, 0, 1080, 20), fill='#031E39')
+          draw.text((80, 250), 'TESTE DE LAYOUT', font=title, fill='#031E39')
+          for index, line in enumerate([
+              'DADOS SINTÉTICOS',
+              'Sem afirmações científicas.',
+              'Sem conteúdo aprovado.',
+              'Fixture de renderização local.',
+          ]):
+              draw.text((80, 650 + 90 * index), line, font=body, fill='#287386')
+          draw.text((80, 1500), 'RASCUNHO — NÃO PUBLICAR', font=body, fill='#031E39')
+          image.save(output, format='PNG', optimize=True)
           PY
-      # Teste de renderização local. Não salvar imagens no repositório público,
-      # não subir artefatos públicos e não publicar no Instagram.
-      - name: Verificar rascunho sem disponibilizar mídia
+      - name: Verificar integridade e remover fixture temporária
+        env:
+          MEDIA_TEST_OUTPUT: ${{ runner.temp }}/story-layout-fixture.png
         run: |
           python - <<'PY'
-          from PIL import Image
+          import os
           from pathlib import Path
-          file = Path('stories/teste-equilibrio.png')
-          with Image.open(file) as im:
-              assert im.format == 'PNG' and im.size == (1080, 1920), 'Arte inválida'
-              im.verify()
-          with open(__import__('os').environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as f:
-              f.write('Renderização local validada (1080x1920). **Rascunho não publicado e não exportado.**\\n')
+          from PIL import Image
+
+          temp = Path(os.environ['RUNNER_TEMP']).resolve()
+          output = Path(os.environ['MEDIA_TEST_OUTPUT']).resolve()
+          if not output.is_relative_to(temp):
+              raise SystemExit('Fixture fora do diretório temporário do runner.')
+          with Image.open(output) as image:
+              assert image.format == 'PNG', 'Formato inesperado'
+              assert image.size == (1080, 1920), 'Dimensões inesperadas'
+              assert image.mode == 'RGB', 'Modo de cor inesperado'
+              image.verify()
+          output.unlink()
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write('Fixture sintética PNG RGB 1080×1920 validada e removida. Nenhuma mídia foi disponibilizada ou publicada.\n')
           PY
