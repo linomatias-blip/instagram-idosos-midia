@@ -5,7 +5,7 @@ on:
     paths:
       - '.github/workflows/story-teste.yml'
 permissions:
-  contents: write
+  contents: read
 jobs:
   story:
     runs-on: ubuntu-latest
@@ -27,22 +27,30 @@ jobs:
           d.rectangle((0,0,1080,20),fill='#031E39')
           d.text((80,110),'@linomatias.idosos',font=font(38,True),fill='#031E39')
           d.text((80,205),'PARA PROFISSIONAIS',font=font(29,True),fill='#287386')
-          for y,line in enumerate(['Treinamento de','pessoas idosas:','o que priorizar?']):
+          for y,line in enumerate(['Caminhada e','treino de equilíbrio:','o que sabemos?']):
               d.text((80,390+90*y),line,font=font(65,True),fill='#031E39')
           d.line((80,740,1000,740),fill='#287386',width=5)
-          for y,line in enumerate(['Para reduzir quedas,','não dependa apenas','de caminhada.']):
+          for y,line in enumerate(['Exercícios de equilíbrio e','tarefas funcionais têm','evidência para reduzir quedas.']):
               d.text((80,850+76*y),line,font=font(53),fill='#031E39')
-          for y,line in enumerate(['Programas que desafiam','progressivamente o equilíbrio','têm evidências de benefício.']):
+          for y,line in enumerate(['Caminhada isolada: evidência','menos conclusiva para','prevenção de quedas.']):
               d.text((80,1170+68*y),line,font=font(42),fill='#031E39')
-          d.text((80,1535),'Pergunta para sua prática:',font=font(35,True),fill='#287386')
-          d.text((80,1600),'Seu treino desafia o equilíbrio?',font=font(35),fill='#031E39')
-          d.text((80,1770),'Fonte: Sherrington et al., Cochrane 2019',font=font(23),fill='#465D6C')
+          d.text((80,1535),'Para discutir na equipe:',font=font(35,True),fill='#287386')
+          d.text((80,1600),'Qual desfecho orienta seu treino?',font=font(35),fill='#031E39')
+          d.text((80,1770),'RASCUNHO — REVISÃO CIENTÍFICA OBRIGATÓRIA',font=font(23),fill='#465D6C')
           Path('stories').mkdir(exist_ok=True)
           im.save('stories/teste-equilibrio.png',optimize=True)
           PY
-      - name: Publicar mídia no repositório
+      # Teste de renderização local. Não salvar imagens no repositório público,
+      # não subir artefatos públicos e não publicar no Instagram.
+      - name: Verificar rascunho sem disponibilizar mídia
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add stories/teste-equilibrio.png
-          git diff --cached --quiet || (git commit -m "media: story científico de teste" && git push)
+          python - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          file = Path('stories/teste-equilibrio.png')
+          with Image.open(file) as im:
+              assert im.format == 'PNG' and im.size == (1080, 1920), 'Arte inválida'
+              im.verify()
+          with open(__import__('os').environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as f:
+              f.write('Renderização local validada (1080x1920). **Rascunho não publicado e não exportado.**\\n')
+          PY
