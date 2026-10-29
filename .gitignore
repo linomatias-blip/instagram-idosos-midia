@@ -1,0 +1,13 @@
+# Fixtures e rascunhos locais nunca são conteúdo público aprovado.
+saida/
+rascunhos/
+stories/teste-*.png
+story-layout-fixture.png
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+*.log
