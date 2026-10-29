@@ -22,7 +22,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
-      MEDIA_TEST_OUTPUT: ${{ runner.temp }}/story-layout-fixture.png
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - uses: actions/checkout@v5
@@ -34,6 +33,8 @@ jobs:
       - name: Instalar dependência de renderização
         run: python -m pip install --disable-pip-version-check 'Pillow==12.3.0'
       - name: Renderizar fixture sem conteúdo científico
+        env:
+          MEDIA_TEST_OUTPUT: ${{ runner.temp }}/story-layout-fixture.png
         run: |
           python - <<'PY'
           import os
@@ -63,6 +64,8 @@ jobs:
           image.save(output, format='PNG', optimize=True)
           PY
       - name: Verificar integridade e remover fixture temporária
+        env:
+          MEDIA_TEST_OUTPUT: ${{ runner.temp }}/story-layout-fixture.png
         run: |
           python - <<'PY'
           import os
